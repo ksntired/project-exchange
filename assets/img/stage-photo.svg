@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg width="360" height="120" viewBox="0 0 360 120" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="8" stdDeviation="20" flood-color="#2f6bff" flood-opacity="0.06"/>
+    </filter>
+  </defs>
+  <g filter="url(#shadow)">
+    <ellipse cx="180" cy="60" rx="160" ry="48" fill="#fff" stroke="#cfe0ff" stroke-width="4"/>
+  </g>
+  <text x="180" y="60" font-family="Inter, Arial, sans-serif" font-size="16" fill="#2f6bff" text-anchor="middle" dominant-baseline="middle">
+    Срок проведения: 2–3 месяца
+  </text>
+</svg>
