@@ -8,6 +8,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
     body{font-family:Inter,sans-serif;background:#fff;color:#0f1218;margin:0;}
+    /* Всегда показываем вертикальную полосу прокрутки, чтобы избежать прыжков макета
+       при динамическом появлении/скрытии скроллбара (обычно причина "прыгающего" футера). */
+    html{overflow-y:scroll;}
     .hero{
       position:relative;
       height:100vh;
@@ -17,7 +20,6 @@
       align-items:center;
       background:#2051ff;
       overflow:hidden;
-      border-radius:20px;
       color:#fff;
       text-align:center;
     }
@@ -143,6 +145,28 @@
   .cursor-follower.visible{opacity:1}
   @media (hover: none), (pointer: coarse){ .cursor-follower{display:none} }
   @media (prefers-reduced-motion: reduce){ .cursor-follower{transition:none} }
+
+  .carousel-indicators {
+  bottom: -50px;
+}
+
+.carousel-indicators button {
+  background-color: #2051ff !important;
+  width: 10px !important;
+  height: 10px !important;
+  border-radius: 50%;
+  margin: 0 5px !important;
+}
+
+#clientsCarousel .carousel-control-prev,
+#clientsCarousel .carousel-control-next {
+  opacity: 1;
+}
+
+#clientsCarousel:hover .carousel-control-prev,
+#clientsCarousel:hover .carousel-control-next {
+  opacity: 1;
+}
   </style>
 </head>
 <body>
@@ -161,13 +185,51 @@
     </div>
   </div>
 
+<!-- Добавить после открывающего тега body, перед page-loader -->
+<nav class="navbar navbar-expand-lg fixed-top bg-white shadow-sm">
+  <div class="container">
+    <!-- Лого -->
+    <a class="navbar-brand" href="#">
+      <img src="assets/img/logo.svg" alt="Логотип" height="40">
+    </a>
+
+    <!-- Гамбургер для мобильного -->
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <!-- Навигационные элементы -->
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item">
+          <a class="nav-link" href="#rating">Рейтинг</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#articles">Статьи</a>
+        </li>
+          <li class="nav-item">
+          <a class="nav-link" href="#cases">Кейсы</a>
+        </li>
+      </ul>
+      
+      <!-- Правая часть меню -->
+      <div class="d-flex align-items-center gap-3">
+        <a href="tel:+79000000000" class="text-dark text-decoration-none">+7 900 000 00 00</a>
+        <a href="#apply" class="btn btn-primary">Оставить заявку</a>
+      </div>
+    </div>
+  </div>
+</nav>
+
+  <!-- Блок 1: Hero Section -->
+  
   <section class="hero">
     <h1>Диагностика системы вашего бизнеса</h1>
     <p>Определим точки роста компании и вместе создадим пошаговый план внедрения изменений</p>
     <a href="#apply" class="btn btn-primary">Оставить заявку</a>
   </section>
 
-    <!-- Блок 2: Первый этап перехода к клиентократии -->
+    <!-- Блок 2: Первый этап системной аналитики  -->
   <section class="container-fluid py-5" style="max-width:1400px">
     <div class="position-relative">
       <div class="row align-items-start">
@@ -238,49 +300,49 @@
       </div>
       <div class="col-lg-7">
         <div class="steps">
-          <div class="step">
+          <div class="step collapsed">
             <div class="content">
               <h4 class="h5 fw-bold">1. Погружение в контекст</h4>
               <p class="muted">Начинаем с установочной встречи, чтобы понять ваши цели и задачи.</p>
             </div>
             <div class="toggle">✕</div>
           </div>
-          <div class="step">
+          <div class="step collapsed">
             <div class="content">
               <h4 class="h5 fw-bold">2. Ознакомительный опрос</h4>
               <p class="muted">Проведем короткий опрос, чтобы получить общее представление о текущей проблеме.</p>
             </div>
             <div class="toggle">✕</div>
           </div>
-          <div class="step">
+          <div class="step collapsed">
             <div class="content">
               <h4 class="h5 fw-bold">3. Подробное исследование</h4>
               <p class="muted">Проведем серию интервью с ключевыми сотрудниками и изучим внутреннюю документацию.</p>
             </div>
             <div class="toggle">✕</div>
           </div>
-          <div class="step">
+          <div class="step collapsed">
             <div class="content">
               <h4 class="h5 fw-bold">4. Определение ключевых проблем</h4>
               <p class="muted">Соберем данные, выделим приоритетные проблемные зоны и сформируем предварительные выводы.</p>
             </div>
             <div class="toggle">✕</div>
           </div>
-          <div class="step">
+          <div class="step collapsed">
             <div class="content">
               <h4 class="h5 fw-bold">5.Подтверждение проблем</h4>
               <p class="muted">Проведем большой опрос, чтобы количественно подтвердить выявленные проблемы.</p>
             </div>
             <div class="toggle">✕</div>
           </div>
-          <div class="step">
+          <div class="step collapsed">
             <div class="content">
               <h4 class="h5 fw-bold">6. Формирование отчета</h4>
               <p class="muted">По результатам диагностики сформируем отчет с рекомендациями по ключевым направлениям развития. Предложим гипотезы решений и оценим их влияние на компанию.</p>
             </div>
             <div class="toggle">✕</div>
           </div>
-          <div class="step">
+          <div class="step collapsed">
             <div class="content">
               <h4 class="h5 fw-bold">7. Презентация результатов</h4>
               <p class="muted">Проведем стратегическую сессию на целый день с ключевыми сотрудниками. Сформируем команду для проверки решений и составим план по внедрению изменений.</p>
@@ -396,11 +458,11 @@
         </div>
         <div class="col-md-6">
           <ul>
-            <li>Определение уровня зрелости модели управления по  </li>
+            <li>Определение уровня зрелости модели управления</li>
             <li>Анализ проблем в модели управления</li>
             <li>Определение точек роста компании</li>
             <li>Отчет по результатам диагностики</li>
-            <li>Инструменты для перехода на новую систему управления</li>
+            <li>Инструменты для перехода на новую систему ведения бизнеса</li>
             <li>Пошаговый план внедрения</li>
           </ul>
 
@@ -419,7 +481,7 @@
       <div class="small"><a href="#" class="text-primary">все кейсы →</a></div>
     </div>
 
-    <div id="clientsCarousel" class="carousel slide" data-bs-ride="carousel">
+  <div id="clientsCarousel" class="carousel slide">
       <div class="carousel-inner">
         <div class="carousel-item active">
           <div class="row g-4">
@@ -499,13 +561,15 @@
     </div>
   </section>
 
-  <!-- Блок: Footer - мессенджер -->
+   <!-- Блок: Footer - мессенджер -->
   <section class="consult-footer">
     <div class="container">
       <div class="row align-items-center">
         <div class="col-md-6 text-start text-white-50">можно сразу написать в мессенджер</div>
         <div class="col-md-6 text-end">
-          <h3 class="mb-0">Telegram</h3>
+          <a href="https://t.me/snow312official" class="text-white text-decoration-none">
+            <h3 class="mb-0">Telegram</h3>
+          </a>
         </div>
       </div>
     </div>
@@ -551,8 +615,8 @@
           </ul>
           <div class="mt-3">
             <div class="d-flex gap-2">
-              <a href="#"><img src="assets/img/social-telegram.svg" alt="tg"/></a>
-              <a href="#"><img src="assets/img/social-vk.svg" alt="vk"/></a>
+              <a href="telegram.com"><img src="assets/img/social-telegram.svg" alt="tg"/></a>
+              <a href="vk.com"><img src="assets/img/social-vk.svg" alt="vk"/></a>
             </div>
           </div>
         </div>
@@ -608,9 +672,14 @@
         const header = step.querySelector('.content h4');
         const toggle = step.querySelector('.toggle');
 
+        // set initial toggle symbol based on collapsed state
+        if(toggle){
+          toggle.textContent = step.classList.contains('collapsed') ? '+' : '✕';
+        }
+
         const toggleStep = ()=>{
           const collapsed = step.classList.toggle('collapsed');
-          toggle.textContent = collapsed ? '+' : '✕';
+          if(toggle) toggle.textContent = collapsed ? '+' : '✕';
         };
 
         // header and toggle only affect their own step
@@ -647,13 +716,42 @@
           if(raf){ cancelAnimationFrame(raf); raf = null; }
         }
 
-        window.addEventListener('mousemove', onMove, {passive:true});
-        window.addEventListener('pointerdown', ()=>{ follower.style.transform += ' scale(0.88)'; }, {passive:true});
-        window.addEventListener('pointerup', ()=>{ follower.style.transform = follower.style.transform.replace(' scale(0.88)',''); }, {passive:true});
-        window.addEventListener('mouseleave', onLeave);
-        window.addEventListener('blur', onLeave);
-      })();
-    });
+          window.addEventListener('mousemove', onMove, {passive:true});
+          window.addEventListener('pointerdown', ()=>{ follower.style.transform += ' scale(0.88)'; }, {passive:true});
+          window.addEventListener('pointerup', ()=>{ follower.style.transform = follower.style.transform.replace(' scale(0.88)',''); }, {passive:true});
+          window.addEventListener('mouseleave', onLeave);
+          window.addEventListener('blur', onLeave);
+        })();
+
+        // Инициализация карусели клиентов: отключаем автоинициализацию через data-api
+        // и предотвращаем свайп (touch), чтобы скролл страницы не воспринимался как перелистывание.
+        (function(){
+          const clientsEl = document.getElementById('clientsCarousel');
+          if(!clientsEl || typeof bootstrap === 'undefined') return;
+
+          // Создаём экземпляр с нужными опциями
+          const clientsCarousel = new bootstrap.Carousel(clientsEl, {
+            interval: 5000,    // интервал между слайдами (если включить автопрокрутку)
+            touch: false,      // отключить свайп, чтобы скролл не вызывал перелистку
+            wrap: true,        // зацикливание
+            keyboard: false    // отключаем клавиши-стрелки
+          });
+
+          // По умолчанию не запускаем автопрокрутку — это предотвращает нежелательные прыжки
+          // при попадании блока в область видимости. Запускаем прокрутку только при наведении
+          // или при явном взаимодействии пользователя.
+          try{ clientsCarousel.pause(); }catch(e){}
+
+          // При наведении начинаем автопрокрутку, при уходе — ставим на паузу
+          clientsEl.addEventListener('mouseenter', ()=>{ try{ clientsCarousel.cycle(); }catch(e){} });
+          clientsEl.addEventListener('mouseleave', ()=>{ try{ clientsCarousel.pause(); }catch(e){} });
+
+          // Также запускаем прокрутку при клике на контролы (чтобы UX был очевиден)
+          clientsEl.querySelectorAll('.carousel-control-prev, .carousel-control-next, .carousel-indicators button').forEach(btn=>{
+            btn.addEventListener('click', ()=>{ try{ clientsCarousel.cycle(); }catch(e){} });
+          });
+        })();
+      });
   </script>
 </body>
 </html>
