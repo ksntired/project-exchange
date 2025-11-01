@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Вход и регистрация | Биржа проектов</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body{font-family:Inter,sans-serif;background:#fff;color:#0f1218;margin:0;min-height:100vh;display:flex;flex-direction:column}
+    html{overflow-y:scroll}
+    .main-nav{position:fixed;top:0;left:0;right:0;z-index:1030;padding:12px 0;background:rgba(255,255,255,0.95);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 1px 0 rgba(15,18,24,0.05);transition:transform .3s ease}
+    .main-nav .nav-auth{display:flex;gap:12px;align-items:center}
+    .main-nav .nav-auth .btn{padding:8px 16px;font-size:14px}
+    .auth-container{flex:1;display:flex;align-items:center;justify-content:center;padding:40px 20px;margin-top:56px}
+    .auth-card{width:100%;max-width:420px;padding:32px;background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(15,18,24,0.05)}
+    .auth-card .nav-tabs{border:none;margin-bottom:24px}
+    .nav-tabs .nav-link{border:none;padding:8px 0;margin-right:24px;color:#6b7280;position:relative}
+    .nav-tabs .nav-link:after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:#2051ff;opacity:0;transition:opacity .2s ease}
+    .nav-tabs .nav-link:hover{color:#111}
+    .nav-tabs .nav-link.active{color:#111;font-weight:600}
+    .nav-tabs .nav-link.active:after{opacity:1}
+    .auth-card .form-control{padding:12px 16px;border-radius:12px;border:1px solid rgba(15,18,24,0.1)}
+    .auth-card .form-control:focus{border-color:rgba(32,81,255,0.4);box-shadow:0 0 0 3px rgba(32,81,255,0.1)}
+    .auth-card .btn-primary{width:100%;padding:12px;background:#2051ff;border:none;border-radius:12px}
+    .auth-card .btn-primary:hover{background:#1a45e3}
+    .auth-card .form-text{color:#6b7280;font-size:14px}
+    .auth-card .form-text a{color:#2051ff;text-decoration:none}
+    .auth-card .form-text a:hover{text-decoration:underline}
+  </style>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg fixed-top bg-white shadow-sm">
+  <div class="container">
+    <!-- Лого -->
+    <a class="navbar-brand" href="/">
+      <img src="assets/img/logo.png" alt="Логотип Биржи проектов" height="40">
+    </a>
+
+    <!-- Гамбургер для мобильного -->
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <!-- Навигационные элементы -->
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item">
+          <a class="nav-link" href="#rating">Рейтинг</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#articles">Статьи</a>
+        </li>
+          <li class="nav-item">
+          <a class="nav-link" href="#cases">Кейсы</a>
+        </li>
+      </ul>
+      
+      <!-- Правая часть меню -->
+      <div class="d-flex align-items-center gap-3">
+        <a href="tel:+79000000000" class="text-dark text-decoration-none">+7 900 000 00 00</a>
+      </div>
+    </div>
+  </div>
+</nav>
+
+  <!-- Контейнер с формами -->
+  <main class="auth-container">
+    <div class="auth-card">
+      <ul class="nav nav-tabs" role="tablist">
+        <li class="nav-item">
+          <button class="nav-link active" id="login-tab" data-bs-toggle="tab" data-bs-target="#login" type="button">
+            Вход
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link" id="register-tab" data-bs-toggle="tab" data-bs-target="#register" type="button">
+            Регистрация
+          </button>
+        </li>
+      </ul>
+
+      <div class="tab-content">
+        <!-- Таб входа -->
+        <div class="tab-pane fade show active" id="login">
+          <!-- добавлены id -->
+          <form id="formLogin" novalidate>
+            <div class="mb-3">
+              <input id="loginEmail" type="email" class="form-control" placeholder="Email" required>
+            </div>
+            <div class="mb-4">
+              <input id="loginPassword" type="password" class="form-control" placeholder="Пароль" required minlength="6">
+              <div class="form-text mt-2">
+                <a id="linkForgot" href="#">Забыли пароль?</a>
+              </div>
+            </div>
+            <div class="mb-3">
+              <button type="submit" class="btn btn-primary">Войти</button>
+            </div>
+            <div class="form-text text-center">
+              Ещё нет аккаунта? <a href="#register" data-bs-toggle="tab" data-bs-target="#register">Зарегистрируйтесь</a>
+            </div>
+          </form>
+        </div>
+
+        <!-- Таб регистрации -->
+        <div class="tab-pane fade" id="register">
+          <!-- добавлены id -->
+          <form id="formRegister" novalidate>
+            <div class="mb-3">
+              <input id="signupName" type="text" class="form-control" placeholder="Имя" required>
+            </div>
+            <div class="mb-3">
+              <input id="signupEmail" type="email" class="form-control" placeholder="Email" required>
+            </div>
+            <div class="mb-3">
+              <input id="signupPassword" type="password" class="form-control" placeholder="Пароль" required minlength="6">
+            </div>
+            <div class="mb-4">
+              <input id="signupPassword2" type="password" class="form-control" placeholder="Повторите пароль" required minlength="6">
+            </div>
+            <div class="mb-3">
+              <button type="submit" class="btn btn-primary">Создать аккаунт</button>
+            </div>
+            <div class="form-text text-center">
+              Уже есть аккаунт? <a href="#login" data-bs-toggle="tab" data-bs-target="#login">Войдите</a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Переключение на вкладку регистрации через ?tab=register
+    document.addEventListener('DOMContentLoaded', ()=>{
+      const urlParams = new URLSearchParams(window.location.search);
+      const tab = urlParams.get('tab');
+      if(tab === 'register'){
+        const registerTab = document.getElementById('register-tab');
+        const bsTab = new bootstrap.Tab(registerTab);
+        bsTab.show();
+      }
+    });
+  </script>
+</body>
+
+<!-- Supabase SDK + инициализация -->
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script>
+  const SUPABASE_URL = 'https://tpejwbinjexacldshshe.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_e9XEKPd_gZLg241U9b-kRg_JmaEcxw3';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+</script>
+
+<!-- Обработчики входа/регистрации/сброса -->
+<script>
+  // логируем все неожиданные ошибки
+  window.addEventListener('error', e => console.error('JS error:', e.message));
+  window.addEventListener('unhandledrejection', e => console.error('Promise rejection:', e.reason));
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    // если уже вошли — отправим в кабинет
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      if (session?.user) {
+        location.href = 'dashboard.html';
+        return;
+      }
+    } catch (e) { console.error('[auth] getSession error', e); }
+
+    // ===== ВХОД =====
+    const formLogin = document.getElementById('formLogin');
+    formLogin?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      try {
+        const { error } = await sb.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        location.href = 'dashboard.html';
+      } catch (err) {
+        console.error('[auth] login error', err);
+        alert(err.message || 'Ошибка входа');
+      }
+    });
+
+    // сброс пароля
+    document.getElementById('linkForgot')?.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const email = prompt('Укажите email для сброса пароля:');
+      if (!email) return;
+      try {
+        const { error } = await sb.auth.resetPasswordForEmail(email, {
+          redirectTo: location.origin + location.pathname
+        });
+        if (error) throw error;
+        alert('Ссылка для сброса отправлена на почту.');
+      } catch (err) {
+        console.error('[auth] reset error', err);
+        alert(err.message || 'Не удалось отправить письмо.');
+      }
+    });
+
+    // ===== РЕГИСТРАЦИЯ =====
+    const formRegister = document.getElementById('formRegister');
+    formRegister?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('signupName').value.trim();
+      const email = document.getElementById('signupEmail').value.trim();
+      const pass  = document.getElementById('signupPassword').value;
+      const pass2 = document.getElementById('signupPassword2').value;
+
+      if (pass.length < 6) return alert('Пароль минимум 6 символов');
+      if (pass !== pass2)   return alert('Пароли не совпадают');
+
+      try {
+  // ✅ добавляем метаданные (name, display_name, full_name)
+  const { data, error } = await sb.auth.signUp({
+    email,
+    password: pass,
+    options: {
+      data: {
+        name,
+        display_name: name,
+        full_name: name
+      }
+    }
+  });
+
+  if (error) throw error;
+
+  // необязательно: создать профиль, если таблица profiles есть
+  if (data.user) {
+    try {
+      await sb.from('profiles').insert({
+        user_id: data.user.id,
+        name,
+        consent_gdpr: true
+      });
+    } catch (e) {
+      console.warn('[auth] profiles insert warn:', e?.message);
+    }
+  }
+
+  if (data.session) {
+    // если подтверждение email отключено — зайдём сразу
+    location.href = 'dashboard.html';
+  } else {
+    alert('Аккаунт создан. Подтвердите email по ссылке из письма, затем войдите.');
+    const t = document.getElementById('login-tab');
+    if (t) bootstrap.Tab.getOrCreateInstance(t).show();
+  }
+
+} catch (err) {
+        console.error('[auth] signup error', err);
+        alert(err.message || 'Ошибка регистрации');
+      }
+    });
+  });
+</script>
+
+</html>

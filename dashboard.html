@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Личный кабинет | Биржа проектов</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body{font-family:Inter,sans-serif;background:#fafbfc;color:#0f1218;margin:0}
+    .container-narrow{max-width:980px}
+  </style>
+</head>
+<body>
+  <!-- Топбар -->
+  <nav class="navbar bg-white shadow-sm sticky-top">
+    <div class="container container-narrow">
+            <a href="/" class="navbar-brand">
+        <img src="assets/img/logo.png" alt="Логотип Биржи проектов" height="40">
+      </a>
+      <div class="d-flex align-items-center gap-2">
+        <span id="helloName" class="text-muted small"></span>
+        <button id="logoutBtn" class="btn btn-outline-secondary btn-sm">Выйти</button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container container-narrow py-4">
+    <!-- Профиль -->
+    <div class="card mb-4">
+      <div class="card-body">
+        <h5 class="card-title mb-3">Профиль</h5>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Имя</label>
+            <input id="profileName" class="form-control" placeholder="Ваше имя">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Email</label>
+            <input id="profileEmail" class="form-control" disabled>
+          </div>
+        </div>
+        <div class="mt-3">
+          <button id="saveProfileBtn" class="btn btn-primary">Сохранить профиль</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Проект -->
+    <div class="card mb-4">
+      <div class="card-body">
+        <h5 class="card-title mb-3">Проект</h5>
+
+        <div id="projectForm" class="row g-3">
+          <div class="col-md-8">
+            <label class="form-label">Название проекта</label>
+            <input id="projTitle" class="form-control" placeholder="Например: Диагностика ООО «Ромашка»">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Кол-во человек</label>
+            <input id="projPeople" type="number" min="0" class="form-control" placeholder="0">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Вуз</label>
+            <input id="projUniv" class="form-control" placeholder="ТГУ / Кафедра ...">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Факультет</label>
+            <input id="projFaculty" class="form-control">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Курс</label>
+            <input id="projCourse" class="form-control">
+          </div>
+        </div>
+        <div class="mt-3">
+          <button id="saveProjectBtn" class="btn btn-primary">Сохранить проект</button>
+          <span id="projectSavedMsg" class="text-success ms-2 d-none">Сохранено ✓</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Опросники -->
+    <div class="card mb-4">
+      <div class="card-body">
+        <h5 class="card-title mb-3">Опросники</h5>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div class="border rounded p-3 h-100">
+              <div class="d-flex justify-content-between">
+                <div>
+                  <div class="fw-semibold">Опросник A</div>
+                  <div class="text-muted small" id="statusA">Статус: —</div>
+                </div>
+                <button class="btn btn-outline-primary btn-sm" data-code="A" id="openA">Открыть</button>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="border rounded p-3 h-100">
+              <div class="d-flex justify-content-between">
+                <div>
+                  <div class="fw-semibold">Опросник B</div>
+                  <div class="text-muted small" id="statusB">Статус: —</div>
+                </div>
+                <button class="btn btn-outline-primary btn-sm" data-code="B" id="openB">Открыть</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Модалка опроса -->
+        <div class="modal fade" id="surveyModal" tabindex="-1">
+          <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title" id="surveyTitle">Опрос</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+              </div>
+              <div class="modal-body">
+                <form id="surveyForm" class="vstack gap-3"></form>
+              </div>
+              <div class="modal-footer">
+                <button id="saveDraftBtn" class="btn btn-outline-secondary">Сохранить черновик</button>
+                <button id="submitSurveyBtn" class="btn btn-primary">Отправить</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Файлы -->
+    <div class="card mb-5">
+      <div class="card-body">
+        <h5 class="card-title mb-3">Файлы для менеджера</h5>
+        <div class="d-flex gap-2">
+          <input id="fileInput" type="file" class="form-control" style="max-width:420px">
+          <button id="uploadBtn" class="btn btn-outline-primary">Загрузить</button>
+        </div>
+        <ul id="filesList" class="list-group list-group-flush mt-3"></ul>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script>
+    // --- Supabase init ---
+    const SUPABASE_URL = 'https://tpejwbinjexacldshshe.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_e9XEKPd_gZLg241U9b-kRg_JmaEcxw3';
+    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // --- State ---
+    let user = null;
+    let project = null;
+    let qMap = {};         // code-> questionnaire {id,title}
+    let currentSub = null; // текущая submission в модалке
+
+    // ---------- helpers ----------
+    const $ = (s)=>document.querySelector(s);
+    const showOk = (el)=>{ el.classList.remove('d-none'); setTimeout(()=>el.classList.add('d-none'), 1200); };
+    const modal = new bootstrap.Modal($('#surveyModal'));
+
+    // ---------- auth guard ----------
+    (async function init(){
+      const { data: { session } } = await sb.auth.getSession();
+      if(!session?.user){ location.replace('auth.html'); return; }
+      user = session.user;
+      $('#helloName').textContent = user.user_metadata?.name || user.email;
+      $('#profileEmail').value = user.email || '';
+
+      // профиль
+      const { data: prof } = await sb.from('profiles').select('*').eq('user_id', user.id).maybeSingle();
+      if (prof?.name) $('#profileName').value = prof.name;
+      if (!prof) {
+        // создадим пустой профиль, если нет
+        await sb.from('profiles').insert({ user_id: user.id, name: user.user_metadata?.name || null });
+      }
+
+      // проект: ищем или создаём
+      const { data: prj } = await sb.from('projects').select('*').eq('owner_id', user.id).order('created_at',{ascending:false}).limit(1).maybeSingle();
+      project = prj;
+      if (!project) {
+        const { data: created } = await sb.from('projects').insert({ owner_id: user.id, title: 'Без названия', people_count: 0 }).select('*').single();
+        project = created;
+      }
+      // подставим значения в форму
+      $('#projTitle').value   = project.title ?? '';
+      $('#projPeople').value  = project.people_count ?? 0;
+      $('#projUniv').value    = project.university ?? '';
+      $('#projFaculty').value = project.faculty ?? '';
+      $('#projCourse').value  = project.course ?? '';
+
+      // справочник опросов A/B
+      const { data: qs } = await sb.from('questionnaires').select('id,code,title').in('code',['A','B']).order('code');
+      (qs||[]).forEach(q=>qMap[q.code]=q);
+
+      // статус A/B
+      await refreshStatuses();
+
+      // файлы
+      renderFiles();
+
+    })();
+
+    async function refreshStatuses(){
+      for (const code of ['A','B']){
+        const q = qMap[code];
+        if(!q){ $('#status'+code).textContent = 'Статус: —'; continue; }
+        const { data: sub } = await sb.from('submissions')
+          .select('id,status').eq('project_id', project.id).eq('questionnaire_id', q.id).eq('user_id', user.id)
+          .order('created_at',{ascending:false}).limit(1).maybeSingle();
+        $('#status'+code).textContent = 'Статус: ' + (sub?.status === 'submitted' ? 'отправлен' : sub ? 'черновик' : 'не начат');
+      }
+    }
+
+    // ---------- actions ----------
+    $('#logoutBtn').addEventListener('click', async ()=>{
+      await sb.auth.signOut(); location.replace('auth.html');
+    });
+
+    $('#saveProfileBtn').addEventListener('click', async ()=>{
+      const name = $('#profileName').value.trim();
+      await sb.auth.updateUser({ data: { name, display_name: name, full_name: name } });
+      await sb.from('profiles').upsert({ user_id: user.id, name });
+      $('#helloName').textContent = name || user.email;
+    });
+
+    $('#saveProjectBtn').addEventListener('click', async ()=>{
+      const payload = {
+        title: $('#projTitle').value.trim(),
+        people_count: Number($('#projPeople').value||0),
+        university: $('#projUniv').value.trim(),
+        faculty: $('#projFaculty').value.trim(),
+        course: $('#projCourse').value.trim()
+      };
+      const { data: upd, error } = await sb.from('projects').update(payload).eq('id', project.id).select('*').single();
+      if(error) return alert(error.message);
+      project = upd; showOk($('#projectSavedMsg'));
+    });
+
+    // открыть опрос
+    $('#openA').addEventListener('click', ()=>openSurvey('A'));
+    $('#openB').addEventListener('click', ()=>openSurvey('B'));
+
+    async function openSurvey(code){
+      const q = qMap[code];
+      if(!q) return alert('Опросник не найден');
+      $('#surveyTitle').textContent = `${q.title} (${code})`;
+
+      // найдём/создадим submission
+      let { data: sub } = await sb.from('submissions')
+        .select('*').eq('project_id', project.id).eq('questionnaire_id', q.id).eq('user_id', user.id)
+        .order('created_at',{ascending:false}).limit(1).maybeSingle();
+      if(!sub){
+        const r = await sb.from('submissions').insert({ project_id: project.id, questionnaire_id: q.id, user_id: user.id, status:'draft' }).select('*').single();
+        sub = r.data;
+      }
+      currentSub = sub;
+
+      // вопросы + существующие ответы
+      const [{ data: questions }, { data: ans }] = await Promise.all([
+        sb.from('questions').select('*').eq('questionnaire_id', q.id).order('order'),
+        sb.from('answers').select('question_id,value').eq('submission_id', sub.id)
+      ]);
+      const answerMap = Object.fromEntries((ans||[]).map(a=>[a.question_id, a.value]));
+
+      // рендер простой формы (text/select/multi/number/date)
+      const form = $('#surveyForm'); form.innerHTML = '';
+      (questions||[]).forEach((qu)=>{
+        const wrap = document.createElement('div');
+        wrap.innerHTML = `<label class="form-label">${qu.label}</label>`;
+        let control;
+        const saved = answerMap[qu.id]?.value ?? null;
+
+        if(qu.type === 'select'){
+          control = document.createElement('select');
+          control.className = 'form-select';
+          (qu.options?.items || []).forEach(opt=>{
+            const o = document.createElement('option'); o.value = opt; o.textContent = opt;
+            if(saved===opt) o.selected = true;
+            control.appendChild(o);
+          });
+        } else if (qu.type === 'multi'){
+          control = document.createElement('div');
+          (qu.options?.items || []).forEach(opt=>{
+            const id = `q${qu.id}-${opt}`;
+            control.insertAdjacentHTML('beforeend',
+              `<div class="form-check">
+                 <input class="form-check-input" type="checkbox" id="${id}" value="${opt}">
+                 <label class="form-check-label" for="${id}">${opt}</label>
+               </div>`);
+          });
+          // восстановить
+          const arr = Array.isArray(answerMap[qu.id]?.value) ? answerMap[qu.id].value : [];
+          arr.forEach(v=>{
+            const el = control.querySelector(`input[value="${v}"]`); if(el) el.checked = true;
+          });
+        } else {
+          // text/number/date
+          control = document.createElement('input');
+          control.className = 'form-control';
+          control.type = (qu.type==='number'?'number': qu.type==='date'?'date':'text');
+          if(saved!=null) control.value = saved;
+        }
+
+        control.dataset.qid = qu.id;
+        control.dataset.qtype = qu.type;
+        wrap.appendChild(control);
+        form.appendChild(wrap);
+      });
+
+      modal.show();
+    }
+
+    async function collectAndSave(status){
+      const els = Array.from($('#surveyForm').querySelectorAll('[data-qid]'));
+      const rows = els.map(el=>{
+        const qid = Number(el.dataset.qid);
+        const t = el.dataset.qtype;
+        let value;
+        if (t==='multi'){
+          value = Array.from(el.parentElement.querySelectorAll('input[type=checkbox]:checked')).map(c=>c.value);
+        } else if (t==='number'){
+          value = Number(el.value||0);
+        } else {
+          value = el.value;
+        }
+        return { submission_id: currentSub.id, question_id: qid, value: (t==='multi' ? { value } : { value }) };
+      });
+
+      // upsert по паре (submission_id, question_id)
+      const { error } = await sb.from('answers').upsert(rows, { onConflict: 'submission_id,question_id' });
+      if (error) return alert(error.message);
+
+      if (status){
+        await sb.from('submissions').update({ status }).eq('id', currentSub.id);
+        await refreshStatuses();
+        modal.hide();
+      }
+    }
+
+    $('#saveDraftBtn').addEventListener('click', async (e)=>{ e.preventDefault(); await collectAndSave('draft'); alert('Черновик сохранён'); });
+    $('#submitSurveyBtn').addEventListener('click', async (e)=>{ e.preventDefault(); await collectAndSave('submitted'); alert('Опрос отправлен'); });
+
+    // ------- Files -------
+    async function renderFiles(){
+      const { data: rows } = await sb.from('project_files').select('*').eq('project_id', project.id).order('created_at', { ascending:false });
+      const list = $('#filesList'); list.innerHTML = '';
+      (rows||[]).forEach(r=>{
+        const li = document.createElement('li');
+        li.className='list-group-item d-flex justify-content-between align-items-center';
+        li.innerHTML = `<span>${r.label||r.path}</span>
+          <div class="btn-group">
+            <button class="btn btn-sm btn-outline-secondary" data-path="${r.path}" data-action="download">Скачать</button>
+            <button class="btn btn-sm btn-outline-danger" data-path="${r.path}" data-id="${r.id}" data-action="delete">Удалить</button>
+          </div>`;
+        list.appendChild(li);
+      });
+      list.addEventListener('click', async (e)=>{
+        const btn = e.target.closest('button'); if(!btn) return;
+        const path = btn.dataset.path;
+        const action = btn.dataset.action;
+        if (action==='download'){
+          const { data } = await sb.storage.from('attachments').createSignedUrl(path, 3600);
+          if (data?.signedUrl) location.href = data.signedUrl;
+        } else if (action==='delete'){
+          if (!confirm('Удалить файл?')) return;
+          await sb.storage.from('attachments').remove([path]);
+          await sb.from('project_files').delete().eq('id', btn.dataset.id);
+          renderFiles();
+        }
+      }, { once:true });
+    }
+
+   // helper: "очистить" имя файла от кириллицы, пробелов и скобок
+function safeFileName(name) {
+  return name
+    .normalize('NFKD')               // нормализуем Unicode
+    .replace(/[^\w.\-]+/g, '_')      // заменяем всё не ASCII
+    .replace(/^_+|_+$/g, '')         // убираем "_" по краям
+    .slice(0, 140);                  // ограничим длину
+}
+
+$('#uploadBtn').addEventListener('click', async ()=>{
+  const f = $('#fileInput').files?.[0];
+  if(!f) return alert('Выберите файл');
+
+  const safeName = safeFileName(f.name);
+  const path = `${project.id}/${crypto.randomUUID()}-${safeName}`; // безопасный путь
+
+  // загружаем в бакет
+  const up = await sb.storage.from('attachments').upload(path, f, {
+    cacheControl: '3600',
+    upsert: false,
+    contentType: f.type || 'application/octet-stream'
+  });
+  if (up.error) return alert(up.error.message);
+
+  // добавляем запись в таблицу
+  const { error } = await sb.from('project_files').insert({
+    project_id: project.id,
+    user_id: user.id,
+    path,
+    label: f.name     // оригинальное имя (чтобы в интерфейсе оставалось красивым)
+  });
+  if (error) return alert(error.message);
+
+  $('#fileInput').value = '';
+  renderFiles();
+});
+
+  </script>
+</body>
+</html>
