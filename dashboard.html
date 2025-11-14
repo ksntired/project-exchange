@@ -20,6 +20,7 @@
       </a>
       <div class="d-flex align-items-center gap-2">
         <span id="helloName" class="text-muted small"></span>
+        <a href="admin.html" id="adminLink" class="btn btn-outline-info btn-sm" style="display:none;">Админ-панель</a>
         <button id="logoutBtn" class="btn btn-outline-secondary btn-sm">Выйти</button>
       </div>
     </div>
@@ -32,9 +33,9 @@
         <h5 class="card-title mb-3">Профиль</h5>
         <div class="row g-3">
           <div class="col-md-6">
-            <label class="form-label">Имя</label>
-            <input id="profileName" class="form-control" placeholder="Ваше имя">
-          </div>
+              <label class="form-label">ФИО</label>
+              <input id="profileFullName" class="form-control" placeholder="Фамилия Имя Отчество">
+            </div>
           <div class="col-md-6">
             <label class="form-label">Email</label>
             <input id="profileEmail" class="form-control" disabled>
@@ -80,32 +81,17 @@
       </div>
     </div>
 
-    <!-- Опросники -->
+    <!-- Опросник -->
     <div class="card mb-4">
       <div class="card-body">
-        <h5 class="card-title mb-3">Опросники</h5>
-        <div class="row g-3">
-          <div class="col-md-6">
-            <div class="border rounded p-3 h-100">
-              <div class="d-flex justify-content-between">
-                <div>
-                  <div class="fw-semibold">Опросник A</div>
-                  <div class="text-muted small" id="statusA">Статус: —</div>
-                </div>
-                <button class="btn btn-outline-primary btn-sm" data-code="A" id="openA">Открыть</button>
-              </div>
+        <h5 class="card-title mb-3">Опросник</h5>
+        <div class="border rounded p-3">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="fw-semibold">Диагностика системы управления</div>
+              <div class="text-muted small" id="surveyStatus">Статус: —</div>
             </div>
-          </div>
-          <div class="col-md-6">
-            <div class="border rounded p-3 h-100">
-              <div class="d-flex justify-content-between">
-                <div>
-                  <div class="fw-semibold">Опросник B</div>
-                  <div class="text-muted small" id="statusB">Статус: —</div>
-                </div>
-                <button class="btn btn-outline-primary btn-sm" data-code="B" id="openB">Открыть</button>
-              </div>
-            </div>
+            <button class="btn btn-outline-primary btn-sm" id="openSurvey">Открыть</button>
           </div>
         </div>
 
@@ -167,15 +153,24 @@
       const { data: { session } } = await sb.auth.getSession();
       if(!session?.user){ location.replace('auth.html'); return; }
       user = session.user;
-      $('#helloName').textContent = user.user_metadata?.name || user.email;
+  // показываем ФИО пользователя (в приоритете metadata/full profile)
+  const initialName = user.user_metadata?.full_name || user.user_metadata?.name || '';
+  $('#helloName').textContent = initialName || user.email;
       $('#profileEmail').value = user.email || '';
 
       // профиль
       const { data: prof } = await sb.from('profiles').select('*').eq('user_id', user.id).maybeSingle();
-      if (prof?.name) $('#profileName').value = prof.name;
+  // приоритет: profiles.full_name -> user_metadata.full_name -> user_metadata.name
+  const profFull = prof?.full_name || user.user_metadata?.full_name || user.user_metadata?.name || '';
+  $('#profileFullName').value = profFull;
       if (!prof) {
         // создадим пустой профиль, если нет
-        await sb.from('profiles').insert({ user_id: user.id, name: user.user_metadata?.name || null });
+        await sb.from('profiles').insert({ user_id: user.id, full_name: user.user_metadata?.full_name || user.user_metadata?.name || null });
+      }
+
+      // проверяем роль — показываем ссылку на админ-панель для staff/admin
+      if (prof?.role && ['staff', 'admin'].includes(prof.role)) {
+        $('#adminLink').style.display = 'inline-block';
       }
 
       // проект: ищем или создаём
@@ -195,24 +190,22 @@
       // справочник опросов A/B
       const { data: qs } = await sb.from('questionnaires').select('id,code,title').in('code',['A','B']).order('code');
       (qs||[]).forEach(q=>qMap[q.code]=q);
-
-      // статус A/B
-      await refreshStatuses();
+      // статус опросника
+      await refreshStatus();
 
       // файлы
       renderFiles();
 
     })();
-
-    async function refreshStatuses(){
-      for (const code of ['A','B']){
-        const q = qMap[code];
-        if(!q){ $('#status'+code).textContent = 'Статус: —'; continue; }
-        const { data: sub } = await sb.from('submissions')
-          .select('id,status').eq('project_id', project.id).eq('questionnaire_id', q.id).eq('user_id', user.id)
-          .order('created_at',{ascending:false}).limit(1).maybeSingle();
-        $('#status'+code).textContent = 'Статус: ' + (sub?.status === 'submitted' ? 'отправлен' : sub ? 'черновик' : 'не начат');
-      }
+    async function refreshStatus(){
+      // ищем первый доступный опросник (обычно с кодом 'A' или первый в списке)
+      const q = qMap['A'] || Object.values(qMap)[0];
+      if(!q){ $('#surveyStatus').textContent = 'Статус: —'; return; }
+      
+      const { data: sub } = await sb.from('submissions')
+        .select('id,status').eq('project_id', project.id).eq('questionnaire_id', q.id).eq('user_id', user.id)
+        .order('created_at',{ascending:false}).limit(1).maybeSingle();
+      $('#surveyStatus').textContent = 'Статус: ' + (sub?.status === 'submitted' ? 'отправлен' : sub ? 'черновик' : 'не начат');
     }
 
     // ---------- actions ----------
@@ -221,10 +214,16 @@
     });
 
     $('#saveProfileBtn').addEventListener('click', async ()=>{
-      const name = $('#profileName').value.trim();
-      await sb.auth.updateUser({ data: { name, display_name: name, full_name: name } });
-      await sb.from('profiles').upsert({ user_id: user.id, name });
-      $('#helloName').textContent = name || user.email;
+      const full = $('#profileFullName').value.trim();
+      try {
+        await sb.auth.updateUser({ data: { name: full, display_name: full, full_name: full } });
+        await sb.from('profiles').upsert({ user_id: user.id, full_name: full }, { onConflict: 'user_id' });
+        $('#helloName').textContent = full || user.email;
+        alert('Профиль сохранён');
+      } catch (e) {
+        console.error('[profile] save error', e);
+        alert('Ошибка при сохранении профиля');
+      }
     });
 
     $('#saveProjectBtn').addEventListener('click', async ()=>{
@@ -239,10 +238,11 @@
       if(error) return alert(error.message);
       project = upd; showOk($('#projectSavedMsg'));
     });
-
     // открыть опрос
-    $('#openA').addEventListener('click', ()=>openSurvey('A'));
-    $('#openB').addEventListener('click', ()=>openSurvey('B'));
+    $('#openSurvey').addEventListener('click', ()=>{
+      const q = qMap['A'] || Object.values(qMap)[0];
+      if(q) openSurvey(q.code);
+    });
 
     async function openSurvey(code){
       const q = qMap[code];
@@ -336,7 +336,7 @@
 
       if (status){
         await sb.from('submissions').update({ status }).eq('id', currentSub.id);
-        await refreshStatuses();
+        await refreshStatus();
         modal.hide();
       }
     }

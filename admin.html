@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Админ-панель | Биржа проектов</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body{font-family:Inter,sans-serif;background:#fafbfc;color:#0f1218;margin:0}
+    .container-narrow{max-width:1200px}
+  </style>
+</head>
+<body>
+  <!-- Топбар -->
+  <nav class="navbar bg-white shadow-sm sticky-top">
+    <div class="container container-narrow">
+      <a href="/" class="navbar-brand">
+        <img src="assets/img/logo.png" alt="Логотип Биржи проектов" height="40">
+      </a>
+      <div class="d-flex align-items-center gap-2">
+        <span id="staffName" class="text-muted small"></span>
+        <button id="logoutBtn" class="btn btn-outline-secondary btn-sm">Выйти</button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container container-narrow py-4">
+    <!-- Заголовок -->
+    <div class="mb-4">
+      <h1 class="h3">Админ-панель</h1>
+      <p class="text-muted">Управление результатами опросников и выгрузка данных</p>
+    </div>
+
+    <!-- Фильтр и поиск -->
+    <div class="card mb-4">
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Фильтр по проекту</label>
+            <select id="projectFilter" class="form-select">
+              <option value="">Все проекты</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Статус ответов</label>
+            <select id="statusFilter" class="form-select">
+              <option value="">Все статусы</option>
+              <option value="draft">Черновик</option>
+              <option value="submitted">Отправлено</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Таблица результатов -->
+    <div class="card mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Результаты опросников</h5>
+        <button id="exportBtn" class="btn btn-success btn-sm">
+          📥 Выгрузить в Excel
+        </button>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table id="resultsTable" class="table table-striped table-hover">
+            <thead>
+              <tr>
+                <th>Проект</th>
+                <th>ФИО заполнившего</th>
+                <th>Email</th>
+                <th>Статус</th>
+                <th>Дата создания</th>
+                <th>Действия</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody">
+              <tr>
+                <td colspan="6" class="text-center text-muted py-4">Загрузка данных...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="noData" class="text-center text-muted py-4" style="display:none;">
+          Нет данных для отображения
+        </div>
+      </div>
+    </div>
+
+    <!-- Детали ответов (модалка) -->
+    <div class="modal fade" id="detailsModal" tabindex="-1">
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Детали ответов</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body" id="detailsBody">
+            <!-- Детали загружаются здесь -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.min.js"></script>
+  
+  <script>
+    // --- Supabase init ---
+    const SUPABASE_URL = 'https://tpejwbinjexacldshshe.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_e9XEKPd_gZLg241U9b-kRg_JmaEcxw3';
+    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // --- State ---
+    let user = null;
+    let allSubmissions = [];
+    let allProjects = [];
+    const $ = (s) => document.querySelector(s);
+    const detailsModal = new bootstrap.Modal($('#detailsModal'));
+
+    // --- Auth guard ---
+    (async function init() {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session?.user) {
+        location.replace('auth.html');
+        return;
+      }
+      user = session.user;
+
+      // Проверяем роль (должна быть 'staff' или 'admin')
+      const { data: profile } = await sb.from('profiles')
+        .select('full_name,role')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!profile?.role || !['staff', 'admin'].includes(profile.role)) {
+        alert('У вас нет доступа к админ-панели');
+        location.replace('dashboard.html');
+        return;
+      }
+
+      $('#staffName').textContent = profile?.full_name || user.email;
+
+      // Загружаем данные
+      await loadData();
+    })();
+
+    // --- Load data ---
+    async function loadData() {
+      try {
+        // Загружаем все проекты
+        const { data: projects } = await sb
+          .from('projects')
+          .select('id,title')
+          .order('created_at', { ascending: false });
+        allProjects = projects || [];
+
+        // Заполняем фильтр по проектам
+        const filter = $('#projectFilter');
+        allProjects.forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = p.id;
+          opt.textContent = p.title;
+          filter.appendChild(opt);
+        });
+
+        // Загружаем все submissions с answers
+        const { data: submissions } = await sb
+          .from('submissions')
+          .select(`
+            id,
+            project_id,
+            user_id,
+            questionnaire_id,
+            status,
+            created_at,
+            projects(title),
+            profiles(full_name),
+            users(email)
+          `)
+          .order('created_at', { ascending: false });
+
+        allSubmissions = submissions || [];
+
+        // Загружаем answers
+        const { data: answers } = await sb
+          .from('answers')
+          .select('submission_id,question_id,value,questions(label)');
+
+        // Сохраняем answers в submission
+        const answerMap = {};
+        (answers || []).forEach(a => {
+          if (!answerMap[a.submission_id]) answerMap[a.submission_id] = [];
+          answerMap[a.submission_id].push(a);
+        });
+        allSubmissions.forEach(s => {
+          s.answers = answerMap[s.id] || [];
+        });
+
+        // Отображаем
+        await renderTable();
+
+        // Обработчики фильтров
+        $('#projectFilter').addEventListener('change', () => renderTable());
+        $('#statusFilter').addEventListener('change', () => renderTable());
+
+      } catch (e) {
+        console.error('[admin] load error:', e);
+        alert('Ошибка при загрузке данных');
+      }
+    }
+
+    // --- Render table ---
+    async function renderTable() {
+      const projectFilter = $('#projectFilter').value;
+      const statusFilter = $('#statusFilter').value;
+
+      let filtered = allSubmissions.filter(s => {
+        if (projectFilter && s.project_id !== projectFilter) return false;
+        if (statusFilter && s.status !== statusFilter) return false;
+        return true;
+      });
+
+      const tbody = $('#tableBody');
+      const noData = $('#noData');
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = '';
+        noData.style.display = 'block';
+        return;
+      }
+
+      noData.style.display = 'none';
+      tbody.innerHTML = filtered.map(s => `
+        <tr>
+          <td>${s.projects?.title || 'Неизвестно'}</td>
+          <td>${s.profiles?.full_name || 'Неизвестно'}</td>
+          <td>${s.users?.email || 'Неизвестно'}</td>
+          <td>
+            <span class="badge ${s.status === 'submitted' ? 'bg-success' : 'bg-warning'}">
+              ${s.status === 'submitted' ? 'Отправлено' : 'Черновик'}
+            </span>
+          </td>
+          <td>${new Date(s.created_at).toLocaleDateString('ru-RU')}</td>
+          <td>
+            <button class="btn btn-sm btn-info" data-id="${s.id}">Посмотреть</button>
+          </td>
+        </tr>
+      `).join('');
+
+      // Обработчики "Посмотреть"
+      tbody.querySelectorAll('button.btn-info').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.dataset.id;
+          const sub = allSubmissions.find(s => s.id === id);
+          if (sub) showDetails(sub);
+        });
+      });
+    }
+
+    // --- Show details modal ---
+    function showDetails(submission) {
+      const html = `
+        <div class="mb-3">
+          <strong>Проект:</strong> ${submission.projects?.title || 'Неизвестно'}
+        </div>
+        <div class="mb-3">
+          <strong>ФИО:</strong> ${submission.profiles?.full_name || 'Неизвестно'}
+        </div>
+        <div class="mb-3">
+          <strong>Email:</strong> ${submission.users?.email || 'Неизвестно'}
+        </div>
+        <div class="mb-3">
+          <strong>Статус:</strong> 
+          <span class="badge ${submission.status === 'submitted' ? 'bg-success' : 'bg-warning'}">
+            ${submission.status === 'submitted' ? 'Отправлено' : 'Черновик'}
+          </span>
+        </div>
+        <hr/>
+        <h6>Ответы:</h6>
+        <div>
+          ${submission.answers.map(a => `
+            <div class="mb-2">
+              <strong>${a.questions?.label || 'Вопрос ' + a.question_id}:</strong>
+              <div class="text-muted">${formatValue(a.value)}</div>
+            </div>
+          `).join('') || '<p class="text-muted">Нет ответов</p>'}
+        </div>
+      `;
+      $('#detailsBody').innerHTML = html;
+      detailsModal.show();
+    }
+
+    function formatValue(val) {
+      if (Array.isArray(val)) {
+        return val.map(v => v.value || v).join(', ');
+      }
+      if (typeof val === 'object') {
+        return val.value || JSON.stringify(val);
+      }
+      return val || '—';
+    }
+
+    // --- Export to Excel ---
+    $('#exportBtn').addEventListener('click', async () => {
+      if (allSubmissions.length === 0) {
+        alert('Нет данных для выгрузки');
+        return;
+      }
+
+      try {
+        // Подготавливаем данные для Excel
+        const data = allSubmissions.map(s => {
+          const row = {
+            'Проект': s.projects?.title || '',
+            'ФИО': s.profiles?.full_name || '',
+            'Email': s.users?.email || '',
+            'Статус': s.status === 'submitted' ? 'Отправлено' : 'Черновик',
+            'Дата': new Date(s.created_at).toLocaleDateString('ru-RU'),
+          };
+
+          // Добавляем ответы как отдельные колонки
+          s.answers.forEach((a, idx) => {
+            const qLabel = a.questions?.label || `Вопрос ${a.question_id}`;
+            row[qLabel] = formatValue(a.value);
+          });
+
+          return row;
+        });
+
+        // Создаём Excel-файл
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Результаты');
+
+        // Автоширина колонок
+        const colWidths = [];
+        Object.keys(data[0] || {}).forEach(() => colWidths.push({ wch: 20 }));
+        ws['!cols'] = colWidths;
+
+        // Сохраняем
+        const fileName = `results_${new Date().toISOString().slice(0, 10)}.xlsx`;
+        XLSX.writeFile(wb, fileName);
+
+        alert('Файл успешно выгружен');
+      } catch (e) {
+        console.error('[export] error:', e);
+        alert('Ошибка при выгрузке: ' + e.message);
+      }
+    });
+
+    // --- Logout ---
+    $('#logoutBtn').addEventListener('click', async () => {
+      await sb.auth.signOut();
+      location.replace('auth.html');
+    });
+
+  </script>
+</body>
+</html>
