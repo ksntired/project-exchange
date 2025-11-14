@@ -161,24 +161,30 @@
   window.addEventListener('unhandledrejection', e => console.error('Promise rejection:', e.reason));
 
   document.addEventListener('DOMContentLoaded', async () => {
-    // если уже вошли — проверяем роль и отправляем на нужную страницу
-    try {
-      const { data: { session } } = await sb.auth.getSession();
-      if (session?.user) {
-        // проверяем роль
-        const { data: profile } = await sb.from('profiles')
-          .select('role')
-          .eq('user_id', session.user.id)
-          .maybeSingle();
-        
-        if (profile?.role && ['staff', 'admin'].includes(profile.role)) {
-          location.href = 'admin.html';
-        } else {
-          location.href = 'dashboard.html';
+    // если уже вышли (флаг), показываем форму и не редиректим
+    const justLoggedOut = sessionStorage.getItem('justLoggedOut');
+    sessionStorage.removeItem('justLoggedOut');
+
+    if (!justLoggedOut) {
+      // проверяем авторизованного пользователя и редиректим
+      try {
+        const { data: { session } } = await sb.auth.getSession();
+        if (session?.user) {
+          // проверяем роль
+          const { data: profile } = await sb.from('profiles')
+            .select('role')
+            .eq('user_id', session.user.id)
+            .maybeSingle();
+          
+          if (profile?.role && ['staff', 'admin'].includes(profile.role)) {
+            location.href = 'admin.html';
+          } else {
+            location.href = 'dashboard.html';
+          }
+          return;
         }
-        return;
-      }
-    } catch (e) { console.error('[auth] getSession error', e); }
+      } catch (e) { console.error('[auth] getSession error', e); }
+    }
 
     // ===== ВХОД =====
     const formLogin = document.getElementById('formLogin');

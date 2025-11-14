@@ -20,7 +20,6 @@
       </a>
       <div class="d-flex align-items-center gap-2">
         <span id="helloName" class="text-muted small"></span>
-        <a href="admin.html" id="adminLink" class="btn btn-outline-info btn-sm" style="display:none;">Админ-панель</a>
         <button id="logoutBtn" class="btn btn-outline-secondary btn-sm">Выйти</button>
       </div>
     </div>
@@ -168,11 +167,6 @@
         await sb.from('profiles').insert({ user_id: user.id, full_name: user.user_metadata?.full_name || user.user_metadata?.name || null });
       }
 
-      // проверяем роль — показываем ссылку на админ-панель для staff/admin
-      if (prof?.role && ['staff', 'admin'].includes(prof.role)) {
-        $('#adminLink').style.display = 'inline-block';
-      }
-
       // проект: ищем или создаём
       const { data: prj } = await sb.from('projects').select('*').eq('owner_id', user.id).order('created_at',{ascending:false}).limit(1).maybeSingle();
       project = prj;
@@ -210,10 +204,14 @@
 
     // ---------- actions ----------
     $('#logoutBtn').addEventListener('click', async ()=>{
-      await sb.auth.signOut(); location.replace('auth.html');
-    });
-
-    $('#saveProfileBtn').addEventListener('click', async ()=>{
+      await sb.auth.signOut();
+      // устанавливаем флаг и даём время на очистку сессии
+      sessionStorage.setItem('justLoggedOut', 'true');
+      // небольшая задержка перед редиректом
+      setTimeout(() => {
+        location.replace('auth.html');
+      }, 300);
+    });    $('#saveProfileBtn').addEventListener('click', async ()=>{
       const full = $('#profileFullName').value.trim();
       try {
         await sb.auth.updateUser({ data: { name: full, display_name: full, full_name: full } });

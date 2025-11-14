@@ -129,20 +129,7 @@
         return;
       }
       user = session.user;
-
-      // Проверяем роль (должна быть 'staff' или 'admin')
-      const { data: profile } = await sb.from('profiles')
-        .select('full_name,role')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (!profile?.role || !['staff', 'admin'].includes(profile.role)) {
-        alert('У вас нет доступа к админ-панели');
-        location.replace('dashboard.html');
-        return;
-      }
-
-      $('#staffName').textContent = profile?.full_name || user.email;
+      $('#staffName').textContent = user.email;
 
       // Загружаем данные
       await loadData();
@@ -355,7 +342,12 @@
     // --- Logout ---
     $('#logoutBtn').addEventListener('click', async () => {
       await sb.auth.signOut();
-      location.replace('auth.html');
+      // устанавливаем флаг и даём время на очистку сессии
+      sessionStorage.setItem('justLoggedOut', 'true');
+      // небольшая задержка перед редиректом
+      setTimeout(() => {
+        location.replace('auth.html');
+      }, 300);
     });
 
   </script>
