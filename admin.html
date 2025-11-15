@@ -154,7 +154,15 @@
           filter.appendChild(opt);
         });
 
-        // Загружаем все submissions с answers
+
+        // Получаем id анкеты с code = 'A'
+        const { data: questionnaire } = await sb.from('questionnaires').select('id').eq('code', 'A').maybeSingle();
+        if (!questionnaire) {
+          alert('Опросник не найден');
+          return;
+        }
+
+        // Загружаем только submissions по этой анкете
         const { data: submissions } = await sb
           .from('submissions')
           .select(`
@@ -168,14 +176,21 @@
             profiles(full_name),
             users(email)
           `)
+          .eq('questionnaire_id', questionnaire.id)
           .order('created_at', { ascending: false });
 
         allSubmissions = submissions || [];
 
-        // Загружаем answers
-        const { data: answers } = await sb
-          .from('answers')
-          .select('submission_id,question_id,value,questions(label)');
+        // Загружаем answers только для этих submissions
+        const ids = allSubmissions.map(s => s.id);
+        let answers = [];
+        if (ids.length) {
+          const { data: ans } = await sb
+            .from('answers')
+            .select('submission_id,question_id,value,questions(label)')
+            .in('submission_id', ids);
+          answers = ans || [];
+        }
 
         // Сохраняем answers в submission
         const answerMap = {};
@@ -268,14 +283,14 @@
         </div>
         <hr/>
         <h6>Ответы:</h6>
-        <div>
-          ${submission.answers.map(a => `
-            <div class="mb-2">
-              <strong>${a.questions?.label || 'Вопрос ' + a.question_id}:</strong>
-              <div class="text-muted">${formatValue(a.value)}</div>
-            </div>
-          `).join('') || '<p class="text-muted">Нет ответов</p>'}
-        </div>
+          <div>
+            ${submission.answers.map(a => `
+              <div class="mb-2">
+                <strong>${a.questions?.label || 'Вопрос ' + a.question_id}:</strong>
+                <textarea class="form-control" rows="2" readonly>${formatValue(a.value)}</textarea>
+              </div>
+            `).join('') || '<p class="text-muted">Нет ответов</p>'}
+          </div>
       `;
       $('#detailsBody').innerHTML = html;
       detailsModal.show();

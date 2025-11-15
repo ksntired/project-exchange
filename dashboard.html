@@ -257,6 +257,7 @@
       }
       currentSub = sub;
 
+
       // вопросы + существующие ответы
       const [{ data: questions }, { data: ans }] = await Promise.all([
         sb.from('questions').select('*').eq('questionnaire_id', q.id).order('order'),
@@ -264,48 +265,18 @@
       ]);
       const answerMap = Object.fromEntries((ans||[]).map(a=>[a.question_id, a.value]));
 
-      // рендер простой формы (text/select/multi/number/date)
+      // рендерим все вопросы как textarea
       const form = $('#surveyForm'); form.innerHTML = '';
       (questions||[]).forEach((qu)=>{
         const wrap = document.createElement('div');
         wrap.innerHTML = `<label class="form-label">${qu.label}</label>`;
-        let control;
-        const saved = answerMap[qu.id]?.value ?? null;
-
-        if(qu.type === 'select'){
-          control = document.createElement('select');
-          control.className = 'form-select';
-          (qu.options?.items || []).forEach(opt=>{
-            const o = document.createElement('option'); o.value = opt; o.textContent = opt;
-            if(saved===opt) o.selected = true;
-            control.appendChild(o);
-          });
-        } else if (qu.type === 'multi'){
-          control = document.createElement('div');
-          (qu.options?.items || []).forEach(opt=>{
-            const id = `q${qu.id}-${opt}`;
-            control.insertAdjacentHTML('beforeend',
-              `<div class="form-check">
-                 <input class="form-check-input" type="checkbox" id="${id}" value="${opt}">
-                 <label class="form-check-label" for="${id}">${opt}</label>
-               </div>`);
-          });
-          // восстановить
-          const arr = Array.isArray(answerMap[qu.id]?.value) ? answerMap[qu.id].value : [];
-          arr.forEach(v=>{
-            const el = control.querySelector(`input[value="${v}"]`); if(el) el.checked = true;
-          });
-        } else {
-          // text/number/date
-          control = document.createElement('input');
-          control.className = 'form-control';
-          control.type = (qu.type==='number'?'number': qu.type==='date'?'date':'text');
-          if(saved!=null) control.value = saved;
-        }
-
-        control.dataset.qid = qu.id;
-        control.dataset.qtype = qu.type;
-        wrap.appendChild(control);
+        const textarea = document.createElement('textarea');
+        textarea.className = 'form-control';
+        textarea.rows = 2;
+        textarea.value = answerMap[qu.id]?.value ?? '';
+        textarea.dataset.qid = qu.id;
+        textarea.dataset.qtype = 'text';
+        wrap.appendChild(textarea);
         form.appendChild(wrap);
       });
 
