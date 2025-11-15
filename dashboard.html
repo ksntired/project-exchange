@@ -15,7 +15,7 @@
   <!-- Топбар -->
   <nav class="navbar bg-white shadow-sm sticky-top">
     <div class="container container-narrow">
-            <a href="/" class="navbar-brand">
+      <a href="/" class="navbar-brand">
         <img src="assets/img/logo.png" alt="Логотип Биржи проектов" height="40">
       </a>
       <div class="d-flex align-items-center gap-2">
@@ -32,9 +32,9 @@
         <h5 class="card-title mb-3">Профиль</h5>
         <div class="row g-3">
           <div class="col-md-6">
-              <label class="form-label">ФИО</label>
-              <input id="profileFullName" class="form-control" placeholder="Фамилия Имя Отчество">
-            </div>
+            <label class="form-label">ФИО</label>
+            <input id="profileFullName" class="form-control" placeholder="Фамилия Имя Отчество">
+          </div>
           <div class="col-md-6">
             <label class="form-label">Email</label>
             <input id="profileEmail" class="form-control" disabled>
@@ -89,6 +89,7 @@
             <div>
               <div class="fw-semibold">Диагностика системы управления</div>
               <div class="text-muted small" id="surveyStatus">Статус: —</div>
+              <div class="text-muted small" id="surveyHint"></div>
             </div>
             <button class="btn btn-outline-primary btn-sm" id="openSurvey">Открыть</button>
           </div>
@@ -139,7 +140,7 @@
     // --- State ---
     let user = null;
     let project = null;
-    let qMap = {};         // code-> questionnaire {id,title}
+    let qMap = {};         // code -> questionnaire {id,title}
     let currentSub = null; // текущая submission в модалке
 
     // ---------- helpers ----------
@@ -147,71 +148,124 @@
     const showOk = (el)=>{ el.classList.remove('d-none'); setTimeout(()=>el.classList.add('d-none'), 1200); };
     const modal = new bootstrap.Modal($('#surveyModal'));
 
+    // проверяем, что проект заполнен
+    function isProjectReady(p = project) {
+      if (!p) return false;
+      const title = (p.title || '').trim();
+      const people = Number(p.people_count || 0);
+      const univ = (p.university || '').trim();
+      const faculty = (p.faculty || '').trim();
+      const course = (p.course || '').trim();
+
+      const titleOk = title && title.toLowerCase() !== 'без названия';
+      const peopleOk = people > 0;
+      const univOk = !!univ;
+      const facultyOk = !!faculty;
+      const courseOk = !!course;
+
+      return titleOk && peopleOk && univOk && facultyOk && courseOk;
+    }
+
+    function updateSurveyHint() {
+      const hint = $('#surveyHint');
+      if (!project) {
+        hint.textContent = 'Сначала заполните данные проекта, чтобы пройти опрос.';
+        return;
+      }
+      if (!isProjectReady()) {
+        hint.textContent = 'Опрос станет доступен после заполнения всех полей проекта.';
+      } else {
+        hint.textContent = '';
+      }
+    }
+
     // ---------- auth guard ----------
     (async function init(){
       const { data: { session } } = await sb.auth.getSession();
       if(!session?.user){ location.replace('auth.html'); return; }
       user = session.user;
-  // показываем ФИО пользователя (в приоритете metadata/full profile)
-  const initialName = user.user_metadata?.full_name || user.user_metadata?.name || '';
-  $('#helloName').textContent = initialName || user.email;
+
+      // показываем ФИО пользователя
+      const initialName = user.user_metadata?.full_name || user.user_metadata?.name || '';
+      $('#helloName').textContent = initialName || user.email;
       $('#profileEmail').value = user.email || '';
 
       // профиль
       const { data: prof } = await sb.from('profiles').select('*').eq('user_id', user.id).maybeSingle();
-  // приоритет: profiles.full_name -> user_metadata.full_name -> user_metadata.name
-  const profFull = prof?.full_name || user.user_metadata?.full_name || user.user_metadata?.name || '';
-  $('#profileFullName').value = profFull;
+      const profFull = prof?.full_name || user.user_metadata?.full_name || user.user_metadata?.name || '';
+      $('#profileFullName').value = profFull;
       if (!prof) {
-        // создадим пустой профиль, если нет
-        await sb.from('profiles').insert({ user_id: user.id, full_name: user.user_metadata?.full_name || user.user_metadata?.name || null });
+        await sb.from('profiles').insert({
+          user_id: user.id,
+          full_name: user.user_metadata?.full_name || user.user_metadata?.name || null
+        });
       }
 
       // проект: ищем или создаём
-      const { data: prj } = await sb.from('projects').select('*').eq('owner_id', user.id).order('created_at',{ascending:false}).limit(1).maybeSingle();
+      const { data: prj } = await sb.from('projects')
+        .select('*')
+        .eq('owner_id', user.id)
+        .order('created_at',{ascending:false})
+        .limit(1)
+        .maybeSingle();
       project = prj;
       if (!project) {
-        const { data: created } = await sb.from('projects').insert({ owner_id: user.id, title: 'Без названия', people_count: 0 }).select('*').single();
+        const { data: created } = await sb.from('projects')
+          .insert({ owner_id: user.id, title: 'Без названия', people_count: 0 })
+          .select('*')
+          .single();
         project = created;
       }
-      // подставим значения в форму
+
+      // заполняем форму проекта
       $('#projTitle').value   = project.title ?? '';
       $('#projPeople').value  = project.people_count ?? 0;
       $('#projUniv').value    = project.university ?? '';
       $('#projFaculty').value = project.faculty ?? '';
       $('#projCourse').value  = project.course ?? '';
 
-      // справочник опросов A/B
-      const { data: qs } = await sb.from('questionnaires').select('id,code,title').in('code',['A','B']).order('code');
+      // опросники
+      const { data: qs } = await sb.from('questionnaires')
+        .select('id,code,title')
+        .in('code',['A','B'])
+        .order('code');
       (qs||[]).forEach(q=>qMap[q.code]=q);
-      // статус опросника
+
+      // статус опросника + подсказка
       await refreshStatus();
+      updateSurveyHint();
 
       // файлы
       renderFiles();
-
     })();
+
     async function refreshStatus(){
-      // ищем первый доступный опросник (обычно с кодом 'A' или первый в списке)
       const q = qMap['A'] || Object.values(qMap)[0];
       if(!q){ $('#surveyStatus').textContent = 'Статус: —'; return; }
-      
+
       const { data: sub } = await sb.from('submissions')
-        .select('id,status').eq('project_id', project.id).eq('questionnaire_id', q.id).eq('user_id', user.id)
-        .order('created_at',{ascending:false}).limit(1).maybeSingle();
-      $('#surveyStatus').textContent = 'Статус: ' + (sub?.status === 'submitted' ? 'отправлен' : sub ? 'черновик' : 'не начат');
+        .select('id,status')
+        .eq('project_id', project.id)
+        .eq('questionnaire_id', q.id)
+        .eq('user_id', user.id)
+        .order('created_at',{ascending:false})
+        .limit(1)
+        .maybeSingle();
+
+      $('#surveyStatus').textContent =
+        'Статус: ' + (sub?.status === 'submitted' ? 'отправлен' : sub ? 'черновик' : 'не начат');
     }
 
     // ---------- actions ----------
     $('#logoutBtn').addEventListener('click', async ()=>{
       await sb.auth.signOut();
-      // устанавливаем флаг и даём время на очистку сессии
       sessionStorage.setItem('justLoggedOut', 'true');
-      // небольшая задержка перед редиректом
       setTimeout(() => {
         location.replace('auth.html');
       }, 300);
-    });    $('#saveProfileBtn').addEventListener('click', async ()=>{
+    });
+
+    $('#saveProfileBtn').addEventListener('click', async ()=>{
       const full = $('#profileFullName').value.trim();
       try {
         await sb.auth.updateUser({ data: { name: full, display_name: full, full_name: full } });
@@ -232,12 +286,37 @@
         faculty: $('#projFaculty').value.trim(),
         course: $('#projCourse').value.trim()
       };
-      const { data: upd, error } = await sb.from('projects').update(payload).eq('id', project.id).select('*').single();
+      const { data: upd, error } = await sb.from('projects')
+        .update(payload)
+        .eq('id', project.id)
+        .select('*')
+        .single();
       if(error) return alert(error.message);
-      project = upd; showOk($('#projectSavedMsg'));
+      project = upd;
+      showOk($('#projectSavedMsg'));
+      updateSurveyHint();
     });
+
     // открыть опрос
     $('#openSurvey').addEventListener('click', ()=>{
+      // проверяем проект перед открытием
+      if (!isProjectReady()) {
+        alert('Сначала заполните все поля проекта. Опрос станет доступен после этого.');
+        // фокус на первое пустое поле
+        if (!$('#projTitle').value.trim() || $('#projTitle').value.trim().toLowerCase()==='без названия') {
+          $('#projTitle').focus();
+        } else if (!$('#projPeople').value || Number($('#projPeople').value) <= 0) {
+          $('#projPeople').focus();
+        } else if (!$('#projUniv').value.trim()) {
+          $('#projUniv').focus();
+        } else if (!$('#projFaculty').value.trim()) {
+          $('#projFaculty').focus();
+        } else if (!$('#projCourse').value.trim()) {
+          $('#projCourse').focus();
+        }
+        return;
+      }
+
       const q = qMap['A'] || Object.values(qMap)[0];
       if(q) openSurvey(q.code);
     });
@@ -249,14 +328,21 @@
 
       // найдём/создадим submission
       let { data: sub } = await sb.from('submissions')
-        .select('*').eq('project_id', project.id).eq('questionnaire_id', q.id).eq('user_id', user.id)
-        .order('created_at',{ascending:false}).limit(1).maybeSingle();
+        .select('*')
+        .eq('project_id', project.id)
+        .eq('questionnaire_id', q.id)
+        .eq('user_id', user.id)
+        .order('created_at',{ascending:false})
+        .limit(1)
+        .maybeSingle();
       if(!sub){
-        const r = await sb.from('submissions').insert({ project_id: project.id, questionnaire_id: q.id, user_id: user.id, status:'draft' }).select('*').single();
+        const r = await sb.from('submissions')
+          .insert({ project_id: project.id, questionnaire_id: q.id, user_id: user.id, status:'draft' })
+          .select('*')
+          .single();
         sub = r.data;
       }
       currentSub = sub;
-
 
       // вопросы + существующие ответы
       const [{ data: questions }, { data: ans }] = await Promise.all([
@@ -296,10 +382,9 @@
         } else {
           value = el.value;
         }
-        return { submission_id: currentSub.id, question_id: qid, value: (t==='multi' ? { value } : { value }) };
+        return { submission_id: currentSub.id, question_id: qid, value: { value } };
       });
 
-      // upsert по паре (submission_id, question_id)
       const { error } = await sb.from('answers').upsert(rows, { onConflict: 'submission_id,question_id' });
       if (error) return alert(error.message);
 
@@ -310,12 +395,24 @@
       }
     }
 
-    $('#saveDraftBtn').addEventListener('click', async (e)=>{ e.preventDefault(); await collectAndSave('draft'); alert('Черновик сохранён'); });
-    $('#submitSurveyBtn').addEventListener('click', async (e)=>{ e.preventDefault(); await collectAndSave('submitted'); alert('Опрос отправлен'); });
+    $('#saveDraftBtn').addEventListener('click', async (e)=>{
+      e.preventDefault();
+      await collectAndSave('draft');
+      alert('Черновик сохранён');
+    });
+
+    $('#submitSurveyBtn').addEventListener('click', async (e)=>{
+      e.preventDefault();
+      await collectAndSave('submitted');
+      alert('Опрос отправлен');
+    });
 
     // ------- Files -------
     async function renderFiles(){
-      const { data: rows } = await sb.from('project_files').select('*').eq('project_id', project.id).order('created_at', { ascending:false });
+      const { data: rows } = await sb.from('project_files')
+        .select('*')
+        .eq('project_id', project.id)
+        .order('created_at', { ascending:false });
       const list = $('#filesList'); list.innerHTML = '';
       (rows||[]).forEach(r=>{
         const li = document.createElement('li');
@@ -343,43 +440,40 @@
       }, { once:true });
     }
 
-   // helper: "очистить" имя файла от кириллицы, пробелов и скобок
-function safeFileName(name) {
-  return name
-    .normalize('NFKD')               // нормализуем Unicode
-    .replace(/[^\w.\-]+/g, '_')      // заменяем всё не ASCII
-    .replace(/^_+|_+$/g, '')         // убираем "_" по краям
-    .slice(0, 140);                  // ограничим длину
-}
+    // helper: очистить имя файла от кириллицы и спецсимволов
+    function safeFileName(name) {
+      return name
+        .normalize('NFKD')
+        .replace(/[^\w.\-]+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        .slice(0, 140);
+    }
 
-$('#uploadBtn').addEventListener('click', async ()=>{
-  const f = $('#fileInput').files?.[0];
-  if(!f) return alert('Выберите файл');
+    $('#uploadBtn').addEventListener('click', async ()=>{
+      const f = $('#fileInput').files?.[0];
+      if(!f) return alert('Выберите файл');
 
-  const safeName = safeFileName(f.name);
-  const path = `${project.id}/${crypto.randomUUID()}-${safeName}`; // безопасный путь
+      const safeName = safeFileName(f.name);
+      const path = `${project.id}/${crypto.randomUUID()}-${safeName}`;
 
-  // загружаем в бакет
-  const up = await sb.storage.from('attachments').upload(path, f, {
-    cacheControl: '3600',
-    upsert: false,
-    contentType: f.type || 'application/octet-stream'
-  });
-  if (up.error) return alert(up.error.message);
+      const up = await sb.storage.from('attachments').upload(path, f, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: f.type || 'application/octet-stream'
+      });
+      if (up.error) return alert(up.error.message);
 
-  // добавляем запись в таблицу
-  const { error } = await sb.from('project_files').insert({
-    project_id: project.id,
-    user_id: user.id,
-    path,
-    label: f.name     // оригинальное имя (чтобы в интерфейсе оставалось красивым)
-  });
-  if (error) return alert(error.message);
+      const { error } = await sb.from('project_files').insert({
+        project_id: project.id,
+        user_id: user.id,
+        path,
+        label: f.name
+      });
+      if (error) return alert(error.message);
 
-  $('#fileInput').value = '';
-  renderFiles();
-});
-
+      $('#fileInput').value = '';
+      renderFiles();
+    });
   </script>
 </body>
 </html>

@@ -119,7 +119,6 @@
     let allSubmissions = [];
     let allProjects = [];
     const $ = (s) => document.querySelector(s);
-    const detailsModal = new bootstrap.Modal($('#detailsModal'));
 
     // --- Auth guard ---
     (async function init() {
@@ -138,11 +137,13 @@
     // --- Load data ---
     async function loadData() {
       try {
-        // Загружаем все проекты
-        const { data: projects } = await sb
+        // 1. Все проекты
+        const { data: projects, error: projErr } = await sb
           .from('projects')
           .select('id,title')
           .order('created_at', { ascending: false });
+
+        if (projErr) throw projErr;
         allProjects = projects || [];
 
         // Заполняем фильтр по проектам
@@ -154,16 +155,21 @@
           filter.appendChild(opt);
         });
 
+        // 2. Анкета A
+        const { data: questionnaire, error: qErr } = await sb
+          .from('questionnaires')
+          .select('id')
+          .eq('code', 'A')
+          .maybeSingle();
 
-        // Получаем id анкеты с code = 'A'
-        const { data: questionnaire } = await sb.from('questionnaires').select('id').eq('code', 'A').maybeSingle();
+        if (qErr) throw qErr;
         if (!questionnaire) {
-          alert('Опросник не найден');
+          alert('Опросник A не найден');
           return;
         }
 
-        // Загружаем только submissions по этой анкете
-        const { data: submissions } = await sb
+        // 3. Submissions для этой анкеты
+        const { data: submissions, error: subErr } = await sb
           .from('submissions')
           .select(`
             id,
@@ -172,46 +178,62 @@
             questionnaire_id,
             status,
             created_at,
-            projects(title),
-            profiles(full_name),
-            users(email)
+            projects(title)
           `)
           .eq('questionnaire_id', questionnaire.id)
           .order('created_at', { ascending: false });
 
+        if (subErr) throw subErr;
         allSubmissions = submissions || [];
 
-        // Загружаем answers только для этих submissions
+        // 4. Профили по user_id
+        const userIds = [...new Set(allSubmissions.map(s => s.user_id).filter(Boolean))];
+        let profilesByUserId = {};
+        if (userIds.length) {
+          const { data: profiles, error: profErr } = await sb
+            .from('profiles')
+            .select('user_id,name')
+            .in('user_id', userIds);
+
+          if (profErr) throw profErr;
+          (profiles || []).forEach(p => profilesByUserId[p.user_id] = p);
+        }
+
+        // 5. Answers для этих submissions
         const ids = allSubmissions.map(s => s.id);
         let answers = [];
         if (ids.length) {
-          const { data: ans } = await sb
+          const { data: ans, error: ansErr } = await sb
             .from('answers')
             .select('submission_id,question_id,value,questions(label)')
             .in('submission_id', ids);
+
+          if (ansErr) throw ansErr;
           answers = ans || [];
         }
 
-        // Сохраняем answers в submission
+        // 6. Склейка
         const answerMap = {};
         (answers || []).forEach(a => {
           if (!answerMap[a.submission_id]) answerMap[a.submission_id] = [];
           answerMap[a.submission_id].push(a);
         });
+
         allSubmissions.forEach(s => {
+          s.profile = profilesByUserId[s.user_id] || null;
           s.answers = answerMap[s.id] || [];
         });
 
-        // Отображаем
+        // 7. Рендер таблицы
         await renderTable();
 
-        // Обработчики фильтров
+        // Фильтры
         $('#projectFilter').addEventListener('change', () => renderTable());
         $('#statusFilter').addEventListener('change', () => renderTable());
 
       } catch (e) {
         console.error('[admin] load error:', e);
-        alert('Ошибка при загрузке данных');
+        alert('Ошибка при загрузке данных: ' + (e.message || e));
       }
     }
 
@@ -239,8 +261,8 @@
       tbody.innerHTML = filtered.map(s => `
         <tr>
           <td>${s.projects?.title || 'Неизвестно'}</td>
-          <td>${s.profiles?.full_name || 'Неизвестно'}</td>
-          <td>${s.users?.email || 'Неизвестно'}</td>
+          <td>${s.profile?.name || 'Неизвестно'}</td>
+          <td>—</td>
           <td>
             <span class="badge ${s.status === 'submitted' ? 'bg-success' : 'bg-warning'}">
               ${s.status === 'submitted' ? 'Отправлено' : 'Черновик'}
@@ -248,19 +270,27 @@
           </td>
           <td>${new Date(s.created_at).toLocaleDateString('ru-RU')}</td>
           <td>
-            <button class="btn btn-sm btn-info" data-id="${s.id}">Посмотреть</button>
+            <button type="button" class="btn btn-sm btn-info" data-id="${s.id}">Посмотреть</button>
           </td>
         </tr>
       `).join('');
 
-      // Обработчики "Посмотреть"
+      // Клики по "Посмотреть"
       tbody.querySelectorAll('button.btn-info').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const id = btn.dataset.id;
-          const sub = allSubmissions.find(s => s.id === id);
-          if (sub) showDetails(sub);
-        });
-      });
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    const id = btn.dataset.id;
+    // сравниваем как строки или используем нестрогое равенство
+    const sub = allSubmissions.find(s => String(s.id) === String(id));
+    // или так: const sub = allSubmissions.find(s => s.id == id);
+
+    if (sub) {
+      showDetails(sub);
+    } else {
+      console.warn('submission not found for id', id, allSubmissions);
+    }
+  });
+});
     }
 
     // --- Show details modal ---
@@ -270,10 +300,10 @@
           <strong>Проект:</strong> ${submission.projects?.title || 'Неизвестно'}
         </div>
         <div class="mb-3">
-          <strong>ФИО:</strong> ${submission.profiles?.full_name || 'Неизвестно'}
+          <strong>ФИО:</strong> ${submission.profile?.name || 'Неизвестно'}
         </div>
         <div class="mb-3">
-          <strong>Email:</strong> ${submission.users?.email || 'Неизвестно'}
+          <strong>Email:</strong> — 
         </div>
         <div class="mb-3">
           <strong>Статус:</strong> 
@@ -283,27 +313,35 @@
         </div>
         <hr/>
         <h6>Ответы:</h6>
-          <div>
-            ${submission.answers.map(a => `
-              <div class="mb-2">
-                <strong>${a.questions?.label || 'Вопрос ' + a.question_id}:</strong>
-                <textarea class="form-control" rows="2" readonly>${formatValue(a.value)}</textarea>
-              </div>
-            `).join('') || '<p class="text-muted">Нет ответов</p>'}
-          </div>
+        <div>
+          ${
+            submission.answers.length
+              ? submission.answers.map(a => `
+                  <div class="mb-2">
+                    <strong>${a.questions?.label || 'Вопрос ' + a.question_id}:</strong>
+                    <textarea class="form-control" rows="2" readonly>${formatValue(a.value)}</textarea>
+                  </div>
+                `).join('')
+              : '<p class="text-muted">Нет ответов</p>'
+          }
+        </div>
       `;
       $('#detailsBody').innerHTML = html;
-      detailsModal.show();
+
+      // создаём/получаем экземпляр модалки и показываем
+      const modalEl = document.getElementById('detailsModal');
+      const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+      modal.show();
     }
 
     function formatValue(val) {
       if (Array.isArray(val)) {
-        return val.map(v => v.value || v).join(', ');
+        return val.map(v => (v && typeof v === 'object' ? v.value ?? JSON.stringify(v) : v)).join(', ');
       }
-      if (typeof val === 'object') {
-        return val.value || JSON.stringify(val);
+      if (val && typeof val === 'object') {
+        return val.value ?? JSON.stringify(val);
       }
-      return val || '—';
+      return val ?? '—';
     }
 
     // --- Export to Excel ---
@@ -314,18 +352,16 @@
       }
 
       try {
-        // Подготавливаем данные для Excel
         const data = allSubmissions.map(s => {
           const row = {
             'Проект': s.projects?.title || '',
-            'ФИО': s.profiles?.full_name || '',
-            'Email': s.users?.email || '',
+            'ФИО': s.profile?.name || '',
+            'Email': '',
             'Статус': s.status === 'submitted' ? 'Отправлено' : 'Черновик',
             'Дата': new Date(s.created_at).toLocaleDateString('ru-RU'),
           };
 
-          // Добавляем ответы как отдельные колонки
-          s.answers.forEach((a, idx) => {
+          s.answers.forEach(a => {
             const qLabel = a.questions?.label || `Вопрос ${a.question_id}`;
             row[qLabel] = formatValue(a.value);
           });
@@ -333,17 +369,14 @@
           return row;
         });
 
-        // Создаём Excel-файл
         const ws = XLSX.utils.json_to_sheet(data);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Результаты');
 
-        // Автоширина колонок
         const colWidths = [];
         Object.keys(data[0] || {}).forEach(() => colWidths.push({ wch: 20 }));
         ws['!cols'] = colWidths;
 
-        // Сохраняем
         const fileName = `results_${new Date().toISOString().slice(0, 10)}.xlsx`;
         XLSX.writeFile(wb, fileName);
 
@@ -357,14 +390,11 @@
     // --- Logout ---
     $('#logoutBtn').addEventListener('click', async () => {
       await sb.auth.signOut();
-      // устанавливаем флаг и даём время на очистку сессии
       sessionStorage.setItem('justLoggedOut', 'true');
-      // небольшая задержка перед редиректом
       setTimeout(() => {
         location.replace('auth.html');
       }, 300);
     });
-
   </script>
 </body>
 </html>
