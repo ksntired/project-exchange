@@ -218,11 +218,23 @@
       }
 
       // заполняем форму проекта
-      $('#projTitle').value   = project.title ?? '';
-      $('#projPeople').value  = project.people_count ?? 0;
-      $('#projUniv').value    = project.university ?? '';
-      $('#projFaculty').value = project.faculty ?? '';
-      $('#projCourse').value  = project.course ?? '';
+const projTitleInput = $('#projTitle');
+const isDefaultTitle = !project.title || project.title.trim().toLowerCase() === 'без названия';
+
+// если название дефолтное — показываем его как плейсхолдер, а не как текст
+if (isDefaultTitle) {
+  projTitleInput.value = '';
+  projTitleInput.placeholder = 'Без названия';
+} else {
+  projTitleInput.value = project.title;
+}
+
+// остальное как было
+$('#projPeople').value  = project.people_count ?? 0;
+$('#projUniv').value    = project.university ?? '';
+$('#projFaculty').value = project.faculty ?? '';
+$('#projCourse').value  = project.course ?? '';
+
 
       // опросники
       const { data: qs } = await sb.from('questionnaires')
