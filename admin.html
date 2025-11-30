@@ -106,7 +106,8 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.min.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.18.5/package/dist/xlsx.full.min.js"></script>
+
   
   <script>
     // --- Supabase init ---
@@ -118,6 +119,7 @@
     let user = null;
     let allSubmissions = [];
     let allProjects = [];
+    let questionList = []; // все вопросы анкеты A в правильном порядке
     const $ = (s) => document.querySelector(s);
 
     // --- Auth guard ---
@@ -167,6 +169,16 @@
           alert('Опросник A не найден');
           return;
         }
+
+        // 2.1 Вопросы анкеты A (для матричной выгрузки)
+        const { data: questions, error: q2Err } = await sb
+          .from('questions')
+          .select('id,label,"order"')
+          .eq('questionnaire_id', questionnaire.id)
+          .order('order');
+
+        if (q2Err) throw q2Err;
+        questionList = questions || [];
 
         // 3. Submissions для этой анкеты
         const { data: submissions, error: subErr } = await sb
@@ -277,20 +289,17 @@
 
       // Клики по "Посмотреть"
       tbody.querySelectorAll('button.btn-info').forEach(btn => {
-  btn.addEventListener('click', (e) => {
-    e.preventDefault();
-    const id = btn.dataset.id;
-    // сравниваем как строки или используем нестрогое равенство
-    const sub = allSubmissions.find(s => String(s.id) === String(id));
-    // или так: const sub = allSubmissions.find(s => s.id == id);
-
-    if (sub) {
-      showDetails(sub);
-    } else {
-      console.warn('submission not found for id', id, allSubmissions);
-    }
-  });
-});
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const id = btn.dataset.id;
+          const sub = allSubmissions.find(s => String(s.id) === String(id));
+          if (sub) {
+            showDetails(sub);
+          } else {
+            console.warn('submission not found for id', id, allSubmissions);
+          }
+        });
+      });
     }
 
     // --- Show details modal ---
@@ -328,7 +337,6 @@
       `;
       $('#detailsBody').innerHTML = html;
 
-      // создаём/получаем экземпляр модалки и показываем
       const modalEl = document.getElementById('detailsModal');
       const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
       modal.show();
@@ -344,15 +352,19 @@
       return val ?? '—';
     }
 
-    // --- Export to Excel ---
+    // --- Export to Excel (матрица: проект × вопросы) ---
     $('#exportBtn').addEventListener('click', async () => {
       if (allSubmissions.length === 0) {
         alert('Нет данных для выгрузки');
         return;
       }
+      if (!questionList.length) {
+        alert('Список вопросов пуст, попробуйте перезагрузить страницу');
+        return;
+      }
 
       try {
-        const data = allSubmissions.map(s => {
+        const excelRows = allSubmissions.map(s => {
           const row = {
             'Проект': s.projects?.title || '',
             'ФИО': s.profile?.name || '',
@@ -361,26 +373,41 @@
             'Дата': new Date(s.created_at).toLocaleDateString('ru-RU'),
           };
 
-          s.answers.forEach(a => {
-            const qLabel = a.questions?.label || `Вопрос ${a.question_id}`;
-            row[qLabel] = formatValue(a.value);
+          // словарь: question_id -> значение
+          const answerMap = {};
+          (s.answers || []).forEach(a => {
+            answerMap[a.question_id] = formatValue(a.value);
+          });
+
+          // добавляем столбцы по каждому вопросу в фиксированном порядке
+          questionList.forEach(q => {
+            row[q.label] = answerMap[q.id] || '';
           });
 
           return row;
         });
 
-        const ws = XLSX.utils.json_to_sheet(data);
+        const ws = XLSX.utils.json_to_sheet(excelRows);
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Результаты');
+        XLSX.utils.book_append_sheet(wb, ws, 'Опрос A');
 
-        const colWidths = [];
-        Object.keys(data[0] || {}).forEach(() => colWidths.push({ wch: 20 }));
-        ws['!cols'] = colWidths;
+        // автоширина колонок
+        const cols = [];
+        Object.keys(excelRows[0] || {}).forEach((key, idx) => {
+          // первые 5 колонок можно сделать чуть шире/уже по вкусу
+          if (idx === 0) cols.push({ wch: 30 });        // Проект
+          else if (idx === 1) cols.push({ wch: 25 });   // ФИО
+          else if (idx === 2) cols.push({ wch: 30 });   // Email
+          else if (idx === 3) cols.push({ wch: 15 });   // Статус
+          else if (idx === 4) cols.push({ wch: 12 });   // Дата
+          else cols.push({ wch: 45 });                  // Вопросы
+        });
+        ws['!cols'] = cols;
 
-        const fileName = `results_${new Date().toISOString().slice(0, 10)}.xlsx`;
+        const fileName = `survey_A_export_${new Date().toISOString().slice(0, 10)}.xlsx`;
         XLSX.writeFile(wb, fileName);
 
-        alert('Файл успешно выгружен');
+        alert('Файл успешно выгружен!');
       } catch (e) {
         console.error('[export] error:', e);
         alert('Ошибка при выгрузке: ' + e.message);

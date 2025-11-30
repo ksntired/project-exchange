@@ -231,61 +231,69 @@
       }
     });
 
-    // ===== РЕГИСТРАЦИЯ =====
-    const formRegister = document.getElementById('formRegister');
-    formRegister?.addEventListener('submit', async (e) => {
-      e.preventDefault();
+ // ===== РЕГИСТРАЦИЯ =====
+const formRegister = document.getElementById('formRegister');
+formRegister?.addEventListener('submit', async (e) => {
+  e.preventDefault();
   const fullName = document.getElementById('signupFullName').value.trim();
-      const email = document.getElementById('signupEmail').value.trim();
-      const pass  = document.getElementById('signupPassword').value;
-      const pass2 = document.getElementById('signupPassword2').value;
+  const email    = document.getElementById('signupEmail').value.trim();
+  const pass     = document.getElementById('signupPassword').value;
+  const pass2    = document.getElementById('signupPassword2').value;
 
-      if (pass.length < 6) return alert('Пароль минимум 6 символов');
-      if (pass !== pass2)   return alert('Пароли не совпадают');
-
-      try {
-  // ✅ добавляем метаданные (name, display_name, full_name)
-  const { data, error } = await sb.auth.signUp({
-    email,
-    password: pass,
-    options: {
-      data: {
-        name: fullName,               // legacy field
-        display_name: fullName,
-        full_name: fullName
-      }
-    }
-  });
-
-  if (error) throw error;
-
-  // необязательно: создать профиль, если таблица profiles есть
-  if (data.user) {
-    try {
-      await sb.from('profiles').insert({
-        user_id: data.user.id,
-        full_name: fullName,
-        consent_gdpr: true
-      });
-    } catch (e) {
-      console.warn('[auth] profiles insert warn:', e?.message);
-    }
+  // ✅ проверка ФИО
+  if (!fullName) {
+    alert('Пожалуйста, заполните поле ФИО');
+    return;
   }
 
-  if (data.session) {
-    // если подтверждение email отключено — зайдём сразу
-    location.href = 'dashboard.html';
-  } else {
-    alert('Аккаунт создан. Подтвердите email по ссылке из письма, затем войдите.');
-    const t = document.getElementById('login-tab');
-    if (t) bootstrap.Tab.getOrCreateInstance(t).show();
+  if (pass.length < 6) {
+    alert('Пароль минимум 6 символов');
+    return;
+  }
+  if (pass !== pass2) {
+    alert('Пароли не совпадают');
+    return;
   }
 
-} catch (err) {
-        console.error('[auth] signup error', err);
-        alert(err.message || 'Ошибка регистрации');
+  try {
+    const { data, error } = await sb.auth.signUp({
+      email,
+      password: pass,
+      options: {
+        data: {
+          name: fullName,
+          display_name: fullName,
+          full_name: fullName
+        }
       }
     });
+
+    if (error) throw error;
+
+    if (data.user) {
+      try {
+        await sb.from('profiles').insert({
+          user_id: data.user.id,
+          full_name: fullName,
+          consent_gdpr: true
+        });
+      } catch (e) {
+        console.warn('[auth] profiles insert warn:', e?.message);
+      }
+    }
+
+    if (data.session) {
+      location.href = 'dashboard.html';
+    } else {
+      alert('Аккаунт создан.');
+      const t = document.getElementById('login-tab');
+      if (t) bootstrap.Tab.getOrCreateInstance(t).show();
+    }
+  } catch (err) {
+    console.error('[auth] signup error', err);
+    alert(err.message || 'Ошибка регистрации');
+  }
+});
   });
 </script>
 
