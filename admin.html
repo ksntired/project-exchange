@@ -352,67 +352,73 @@
       return val ?? '—';
     }
 
-    // --- Export to Excel (матрица: проект × вопросы) ---
-    $('#exportBtn').addEventListener('click', async () => {
-      if (allSubmissions.length === 0) {
-        alert('Нет данных для выгрузки');
-        return;
-      }
-      if (!questionList.length) {
-        alert('Список вопросов пуст, попробуйте перезагрузить страницу');
-        return;
-      }
+   // --- Export to Excel (матрица: Вопрос × Респондент) ---
+$('#exportBtn').addEventListener('click', async () => {
+  if (allSubmissions.length === 0) {
+    alert('Нет данных для выгрузки');
+    return;
+  }
+  if (!questionList.length) {
+    alert('Список вопросов пуст, попробуйте перезагрузить страницу');
+    return;
+  }
 
-      try {
-        const excelRows = allSubmissions.map(s => {
-          const row = {
-            'Проект': s.projects?.title || '',
-            'ФИО': s.profile?.name || '',
-            'Email': '',
-            'Статус': s.status === 'submitted' ? 'Отправлено' : 'Черновик',
-            'Дата': new Date(s.created_at).toLocaleDateString('ru-RU'),
-          };
+  try {
+    // 1) Заголовок: "Вопрос" + по столбцу на каждого респондента
+    const header = ['Вопрос'];
 
-          // словарь: question_id -> значение
-          const answerMap = {};
-          (s.answers || []).forEach(a => {
-            answerMap[a.question_id] = formatValue(a.value);
-          });
-
-          // добавляем столбцы по каждому вопросу в фиксированном порядке
-          questionList.forEach(q => {
-            row[q.label] = answerMap[q.id] || '';
-          });
-
-          return row;
-        });
-
-        const ws = XLSX.utils.json_to_sheet(excelRows);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Опрос A');
-
-        // автоширина колонок
-        const cols = [];
-        Object.keys(excelRows[0] || {}).forEach((key, idx) => {
-          // первые 5 колонок можно сделать чуть шире/уже по вкусу
-          if (idx === 0) cols.push({ wch: 30 });        // Проект
-          else if (idx === 1) cols.push({ wch: 25 });   // ФИО
-          else if (idx === 2) cols.push({ wch: 30 });   // Email
-          else if (idx === 3) cols.push({ wch: 15 });   // Статус
-          else if (idx === 4) cols.push({ wch: 12 });   // Дата
-          else cols.push({ wch: 45 });                  // Вопросы
-        });
-        ws['!cols'] = cols;
-
-        const fileName = `survey_A_export_${new Date().toISOString().slice(0, 10)}.xlsx`;
-        XLSX.writeFile(wb, fileName);
-
-        alert('Файл успешно выгружен!');
-      } catch (e) {
-        console.error('[export] error:', e);
-        alert('Ошибка при выгрузке: ' + e.message);
-      }
+    allSubmissions.forEach((s, idx) => {
+      const projectTitle = s.projects?.title || 'Без названия';
+      const fullName = s.profile?.name || 'Без ФИО';
+      const label = `${idx + 1}) ${projectTitle} — ${fullName}`;
+      header.push(label);
     });
+
+    // 2) Предварительно собираем ответы в удобную карту: submission_id -> { question_id -> value }
+    const answersBySubmission = {};
+    allSubmissions.forEach(s => {
+      const map = {};
+      (s.answers || []).forEach(a => {
+        map[a.question_id] = formatValue(a.value);
+      });
+      answersBySubmission[s.id] = map;
+    });
+
+    // 3) Формируем двумерный массив (aoa: array of arrays)
+    const aoa = [header];
+
+    questionList.forEach(q => {
+      const row = [q.label]; // первый столбец — текст вопроса
+
+      allSubmissions.forEach(s => {
+        const map = answersBySubmission[s.id] || {};
+        row.push(map[q.id] || ''); // ответ или пусто
+      });
+
+      aoa.push(row);
+    });
+
+    // 4) Преобразуем в лист Excel
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Опрос A');
+
+    // 5) Немного настроим ширину колонок
+    const cols = aoa[0].map((_, idx) => {
+      if (idx === 0) return { wch: 60 };  // колонка с вопросами пошире
+      return { wch: 30 };                 // респонденты
+    });
+    ws['!cols'] = cols;
+
+    const fileName = `survey_A_export_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+
+    alert('Файл успешно выгружен!');
+  } catch (e) {
+    console.error('[export] error:', e);
+    alert('Ошибка при выгрузке: ' + e.message);
+  }
+});
 
     // --- Logout ---
     $('#logoutBtn').addEventListener('click', async () => {
